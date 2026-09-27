@@ -23,4 +23,4 @@ RUN npm install
 
 COPY . .
 
-CMD ["node", "example.js"]
+CMD ["node", "bot/index.js"]
