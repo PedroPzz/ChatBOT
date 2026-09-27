@@ -127,11 +127,12 @@ function thankYouText(data) {
 // ---------------------------------------------------------------
 // Utilitários
 // ---------------------------------------------------------------
-async function send(client, chat, text) {
+async function send(chat, text) {
     try {
         await chat.sendStateTyping();
         await new Promise((r) => setTimeout(r, 600));
-        await client.sendMessage(chat.id._serialized, text);
+        // Envia diretamente através da instância do chat (suporta @c.us e @lid)
+        await chat.sendMessage(text);
         await chat.clearState();
     } catch (e) {
         console.error('Erro ao enviar mensagem:', e.message);
@@ -164,12 +165,11 @@ async function handleMessage(client, msg) {
     // Comandos globais, válidos em qualquer etapa
     if (['menu', 'reiniciar', 'recomeçar', 'recomecar'].includes(lower)) {
         resetSession(chatId);
-        return send(client, chat, menuText());
+        return send(chat, menuText());
     }
     if (lower === 'atendente') {
         session.step = STEPS.HUMAN;
         await send(
-            client,
             chat,
             'Combinado! Um atendente humano vai assumir esta conversa em breve. ' +
                 `Nosso horário de atendimento é ${config.workingHours}.`
@@ -181,52 +181,52 @@ async function handleMessage(client, msg) {
     // Primeira mensagem do usuário: sempre manda saudação + menu
     if (session.isNew) {
         session.step = STEPS.MENU;
-        return send(client, chat, greetingText());
+        return send(chat, greetingText());
     }
 
     switch (session.step) {
         case STEPS.MENU: {
             if (text === '1') {
                 session.step = STEPS.ASK_NAME;
-                return send(client, chat, 'Legal! Para começar, qual é o seu nome?');
+                return send(chat, 'Legal! Para começar, qual é o seu nome?');
             }
             if (text === '2') {
-                return send(client, chat, plansOverviewText());
+                return send(chat, plansOverviewText());
             }
             if (text === '3') {
                 session.step = STEPS.HUMAN;
-                await send(client, chat, `Ok! Um atendente vai te responder por aqui em breve (${config.workingHours}).`);
+                await send(chat, `Ok! Um atendente vai te responder por aqui em breve (${config.workingHours}).`);
                 const lead = saveLead(chatId, { mensagem: 'Solicitou atendente humano pelo menu' });
                 return notifyAdmins(client, lead);
             }
-            return send(client, chat, `Não entendi. 🙂\n\n${menuText()}`);
+            return send(chat, `Não entendi. 🙂\n\n${menuText()}`);
         }
 
         case STEPS.ASK_NAME: {
-            if (!text) return send(client, chat, 'Pode me dizer seu nome, por favor?');
+            if (!text) return send(chat, 'Pode me dizer seu nome, por favor?');
             session.data.nome = text;
             session.step = STEPS.ASK_COMPANY;
-            return send(client, chat, `Prazer, ${text.split(' ')[0]}! Qual é o nome da sua empresa? (ou digite "pular")`);
+            return send(chat, `Prazer, ${text.split(' ')[0]}! Qual é o nome da sua empresa? (ou digite "pular")`);
         }
 
         case STEPS.ASK_COMPANY: {
             session.data.empresa = isSkip(text) ? '' : text;
             session.step = STEPS.ASK_CITY;
-            return send(client, chat, 'Em qual cidade você está?');
+            return send(chat, 'Em qual cidade você está?');
         }
 
         case STEPS.ASK_CITY: {
             session.data.cidade = text;
             session.step = STEPS.ASK_PLAN;
-            return send(client, chat, askPlanText());
+            return send(chat, askPlanText());
         }
 
         case STEPS.ASK_PLAN: {
             const choice = parseNumberChoice(text, PLANOS.length + 1);
-            if (!choice) return send(client, chat, `Não entendi a opção. ${askPlanText()}`);
+            if (!choice) return send(chat, `Não entendi a opção. ${askPlanText()}`);
             session.data.plano = choice <= PLANOS.length ? PLANOS[choice - 1] : '';
             session.step = STEPS.ASK_SERVICE;
-            return send(client, chat, askServiceText(session.data.plano));
+            return send(chat, askServiceText(session.data.plano));
         }
 
         case STEPS.ASK_SERVICE: {
@@ -235,7 +235,6 @@ async function handleMessage(client, msg) {
             session.data.servicoInteresse = choice ? services[choice - 1] : text;
             session.step = STEPS.ASK_OBJECTIVE;
             return send(
-                client,
                 chat,
                 'Qual é o seu principal objetivo com esse serviço? (ex: gerar mais vendas, atrair clientes, organizar o comercial...)'
             );
@@ -244,26 +243,26 @@ async function handleMessage(client, msg) {
         case STEPS.ASK_OBJECTIVE: {
             session.data.objetivoPrincipal = text;
             session.step = STEPS.ASK_TIME;
-            return send(client, chat, askTimeText());
+            return send(chat, askTimeText());
         }
 
         case STEPS.ASK_TIME: {
             const options = { 1: 'Manhã', 2: 'Tarde', 3: 'Noite', 4: 'Qualquer horário' };
             session.data.melhorHorario = options[text.trim()] || text;
             session.step = STEPS.ASK_MESSAGE;
-            return send(client, chat, 'Por fim, quer deixar alguma mensagem ou detalhe adicional? (ou digite "pular")');
+            return send(chat, 'Por fim, quer deixar alguma mensagem ou detalhe adicional? (ou digite "pular")');
         }
 
         case STEPS.ASK_MESSAGE: {
             session.data.mensagem = isSkip(text) ? '' : text;
             session.step = STEPS.CONFIRM;
-            return send(client, chat, summaryText(session.data));
+            return send(chat, summaryText(session.data));
         }
 
         case STEPS.CONFIRM: {
             if (lower === 'sim') {
                 const lead = saveLead(chatId, session.data);
-                await send(client, chat, thankYouText(session.data));
+                await send(chat, thankYouText(session.data));
                 await notifyAdmins(client, lead);
                 resetSession(chatId);
                 return;
@@ -271,9 +270,9 @@ async function handleMessage(client, msg) {
             if (lower === 'corrigir') {
                 session.step = STEPS.ASK_NAME;
                 session.data = {};
-                return send(client, chat, 'Sem problemas, vamos refazer. Qual é o seu nome?');
+                return send(chat, 'Sem problemas, vamos refazer. Qual é o seu nome?');
             }
-            return send(client, chat, `Responda *sim* para confirmar ou *corrigir* para refazer.\n\n${summaryText(session.data)}`);
+            return send(chat, `Responda *sim* para confirmar ou *corrigir* para refazer.\n\n${summaryText(session.data)}`);
         }
 
         case STEPS.HUMAN: {
@@ -283,7 +282,7 @@ async function handleMessage(client, msg) {
 
         default: {
             resetSession(chatId);
-            return send(client, chat, greetingText());
+            return send(chat, greetingText());
         }
     }
 }
