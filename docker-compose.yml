@@ -1,0 +1,13 @@
+services:
+  bot:
+    build: .
+    container_name: whatsapp-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Mantém a sessão do WhatsApp e os leads salvos entre reinicializações/deploys
+      - ./.wwebjs_auth:/app/.wwebjs_auth
+      - ./data:/app/data
+    # Necessário para o Chromium rodar estável em containers com pouca memória
+    shm_size: '1gb'
