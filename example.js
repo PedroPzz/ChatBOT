@@ -1,29 +1,24 @@
 const fs = require('fs');
+const qrcode = require('qrcode-terminal'); // Biblioteca para renderizar o QR Code no terminal
 const { Client, Location, Poll, List, Buttons, LocalAuth } = require('./index');
 
 const client = new Client({
     authStrategy: new LocalAuth(),
-    // proxyAuthentication: { username: 'username', password: 'password' },
-    /**
-     * This option changes the browser name from defined in user agent to custom.
-     */
-    // deviceName: 'Your custom name',
-    /**
-     * This option changes browser type from defined in user agent to yours. It affects the browser icon
-     * that is displayed in 'linked devices' section.
-     * Valid value are: 'Chrome' | 'Firefox' | 'IE' | 'Opera' | 'Safari' | 'Edge'.
-     * If another value is provided, the browser icon in 'linked devices' section will be gray.
-     */
-    // browserName: 'Firefox',
     puppeteer: {
-        // args: ['--proxy-server=proxy-server-that-requires-authentication.example.com'],
-        headless: false,
-    },
-    // pairWithPhoneNumber: {
-    //     phoneNumber: '96170100100' // Pair with phone number (format: <COUNTRY_CODE><PHONE_NUMBER>)
-    //     showNotification: true,
-    //     intervalMs: 180000 // Time to renew pairing code in milliseconds, defaults to 3 minutes
-    // }
+        headless: true,
+        // Utiliza o Chromium instalado no container pelo Dockerfile
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium',
+        // Flags essenciais para rodar o Puppeteer em ambientes Linux/Docker sem interface gráfica
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu'
+        ]
+    }
 });
 
 // client initialize does not finish at ready now.
