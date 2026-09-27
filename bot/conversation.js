@@ -127,19 +127,24 @@ function thankYouText(data) {
 // ---------------------------------------------------------------
 // Utilitários
 // ---------------------------------------------------------------
-// Utilitário de envio ajustado para usar a mensagem de origem
 async function send(msg, text) {
+    const chat = await msg.getChat();
     try {
-        const chat = await msg.getChat();
         await chat.sendStateTyping();
         await new Promise((r) => setTimeout(r, 600));
-        
-        // msg.reply envia diretamente de volta para quem mandou a mensagem,
-        // tratando IDs @c.us e @lid automaticamente!
-        await msg.reply(text);
-        await chat.clearState();
+        // Envia pela conversa resolvida, que suporta IDs tradicionais e @lid.
+        // msg.reply adiciona uma citação e pode falhar quando o ID da mensagem
+        // recebida não pode ser resolvido pelo WhatsApp Web.
+        return await chat.sendMessage(text);
     } catch (e) {
-        console.error('Erro ao enviar mensagem:', e.message);
+        console.error('Erro ao enviar mensagem:', e);
+        throw e;
+    } finally {
+        try {
+            await chat.clearState();
+        } catch (e) {
+            console.error('Erro ao limpar estado de digitação:', e);
+        }
     }
 }
 
