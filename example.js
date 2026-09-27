@@ -29,8 +29,9 @@ client.on('loading_screen', (percent, message) => {
 });
 
 client.on('qr', async (qr) => {
-    // NOTE: This event will not be fired if a session is specified.
     console.log('QR RECEIVED', qr);
+    // Adicione esta linha para desenhar o QR Code no terminal
+    qrcode.generate(qr, { small: true });
 });
 
 client.on('code', (code) => {
